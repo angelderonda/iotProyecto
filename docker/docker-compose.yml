@@ -1,21 +1,23 @@
-version: '3.8'
+version: '3'  # Versión de Docker Compose que estás utilizando
 
 services:
-  mongo:
-    image: mongo
-    container_name: my_mongo_container
-    restart: always
+  mongodb: # Servicio para MongoDB
+    image: mongo:3.6.3 # Imagen de Docker para MongoDB, versión 3.6.3
+    container_name: mongodb # Nombre del contenedor de MongoDB
     ports:
-      - 27017:27017
+      - '27017:27017' # Mapeo de puertos para acceder a MongoDB desde el host
     volumes:
-      - mongo_data:/data/db
+      - ./mongodb_data:/data/db # Ruta de la carpeta local para el volumen de MongoDB. Debes crear una carpeta local en tu escritorio con este nombre.
+      - ./mongodb.conf:/etc/mongo/mongodb.conf # Ruta del archivo de configuración de MongoDB
+    environment:
+      - MONGO_INITDB_DATABASE=iotProyecto # Nombre de la base de datos que se creará al iniciar MongoDB
+      - MONGO_INITDB_ROOT_USERNAME=iotProyecto # Nombre de usuario del usuario root de MongoDB
+      - MONGO_INITDB_ROOT_PASSWORD=iotProyecto # Contraseña del usuario root de MongoDB
 
-  mosquitto:
-    image: eclipse-mosquitto
-    container_name: my_mosquitto_container
-    restart: always
+  mosquitto: # Servicio para Mosquitto
+    image: eclipse-mosquitto:1.6.9 # Imagen de Docker para Mosquitto, versión 1.6.9
+    container_name: mosquitto # Nombre del contenedor de Mosquitto
     ports:
-      - 1883:1883
-
-volumes:
-  mongo_data:
+      - '1883:1883' # Mapeo de puertos para acceder a Mosquitto desde el host
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf # Ruta del archivo de configuración de Mosquitto
