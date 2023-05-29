@@ -3,15 +3,15 @@
 #include <ESP8266WiFi.h>
 
 // Definir los pines del lector RFID
-#define SS_PIN D8
 #define RST_PIN D1
+#define SS_PIN D8
 #define LED_BUILTIN D0
 MFRC522 mfrc522(SS_PIN, RST_PIN); // Instancia de la clase
 
 // Definir los detalles de la conexión a WiFi y MQTT
 const char* ssid = "Angelito";
 const char* password = "c@lvo123";
-const char* mqtt_server = "192.168.118.88";
+const char* mqtt_server = "192.168.118.88"; //mosquitto_sub -h 192.168.118.88 -t \# -d
 const char* mqtt_topic = "topic/ejemplo";
 
 // Crear una instancia del cliente MQTT
