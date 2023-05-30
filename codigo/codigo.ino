@@ -1,39 +1,50 @@
 #include <MFRC522.h>
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
+#include <ArduinoJson.h>
 
 // Definir los pines del lector RFID
 #define RST_PIN D1
 #define SS_PIN D8
 #define LED_BUILTIN D0
-MFRC522 mfrc522(SS_PIN, RST_PIN); // Instancia de la clase
+#define BUTTON_PIN D3
+
+MFRC522 mfrc522(SS_PIN, RST_PIN);  // Instancia de la clase
 
 // Definir los detalles de la conexión a WiFi y MQTT
 const char* ssid = "Angelito";
 const char* password = "c@lvo123";
-const char* mqtt_server = "192.168.118.88"; //mosquitto_sub -h 192.168.118.88 -t \# -d
-const char* mqtt_topic = "topic/ejemplo";
+const char* mqtt_server = "192.168.118.88";  //mosquitto_sub -h 192.168.118.88 -t \# -d
+
+// Nombres de los tópicos MQTT
+const char* mqtt_topic_solicitud = "solicitud/NFC";
+const char* mqtt_topic_comando = "cmd/abrir";
+const char* mqtt_topic_max_intentos = "maxIntentos";
+const char* mqtt_topic_timbre = "solicitud/timbre";
 
 // Crear una instancia del cliente MQTT
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
-bool isCardReadEnabled = true;    // Variable para habilitar/deshabilitar la lectura de tarjetas
-unsigned long lastCardReadTime = 0;  // Variable para almacenar el tiempo de la última lectura de tarjeta
-const unsigned long cardReadInterval = 5000; // Intervalo de tiempo en milisegundos entre lecturas de tarjetas
+bool isCardReadEnabled = true;     // Variable para habilitar/deshabilitar la lectura de tarjetas
+bool isDoorOpen = false;           // Variable para indicar si la puerta está abierta
+bool isReadModeEnabled = true;     // Variable para habilitar/deshabilitar el modo de lectura de tarjetas
+unsigned int failedAttempts = -1;  // Contador de intentos fallidos de lectura de tarjetas
+unsigned int maxAttempts = 5;      // Número máximo de intentos fallidos permitidos
+unsigned long tiempoOpen = 3000;   // Variable para controlar el tiempo de encendido del led 3 segundos predeterminado
+bool buttonState = false;          //Estado del pulsador
 
-void reconnect() {
-  // Reconectar al broker MQTT
-  while (!mqttClient.connected()) {
-    Serial.println("Intentando reconexión al broker MQTT...");
-    if (mqttClient.connect("arduino")) {
-      Serial.println("Conectado al broker MQTT");
-    } else {
-      Serial.println("Falló al conectar al broker MQTT. Reintentando en 5 segundos...");
-      delay(5000);
-    }
-  }
-}
+unsigned long lastCardReadTime = 0;           // Variable para almacenar el tiempo de la última lectura de tarjeta
+const unsigned long cardReadInterval = 5000;  // Intervalo de tiempo en milisegundos entre lecturas de tarjetas
+
+void reconnect();
+void handleButtonPress();
+void handleCardRead();
+void processCommand(const char* topic, const char* message);
+void resetFailedAttempts();
+void updateAttempts();
+void enableReadMode();
+void disableReadMode();
 
 void setup() {
   // Inicializar el lector RFID
@@ -54,33 +65,55 @@ void setup() {
 
   // Conectar al broker MQTT
   mqttClient.setServer(mqtt_server, 1883);
-  mqttClient.setCallback(callback);
-  while (!mqttClient.connected()) {
-    Serial.println("Conectando al broker MQTT...");
-    if (mqttClient.connect("arduino")) {
-      Serial.println("Conectado al broker MQTT");
-    } else {
-      Serial.println("Falló al conectar al broker MQTT. Reintentando en 5 segundos...");
-      delay(5000);
-    }
-  }
+  // Convertir la función processCommand en un puntero a función compatible
+  std::function<void(char*, byte*, unsigned int)> callbackWrapper = [](char* topic, byte* payload, unsigned int length) {
+    callback(topic, payload, length);
+  };
 
-  // Suscribirse al tópico MQTT
-  mqttClient.subscribe(mqtt_topic);
+  // Setear el callback del cliente MQTT
+  mqttClient.setCallback(callbackWrapper);
+  reconnect();
+
+  // Suscribirse a los tópicos MQTT
+  mqttClient.subscribe(mqtt_topic_comando);
 
   // Configurar el pin del LED incorporado como salida
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);  // Apagar el LED al inicio
+
+  // Configurar el pulsador
+  pinMode(BUTTON_PIN, INPUT);
+
+  // Configurar la función de reinicio del contador de intentos fallidos
+  resetFailedAttempts();
+
+  // Actualizar el valor de intentosFallidos
+  updateAttempts();
+
+  // Habilitar el modo de lectura de tarjetas
+  enableReadMode();
 }
 
 void loop() {
-  // Verificar si se ha detectado una tarjeta RFID
-  if (isCardReadEnabled && mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
-    // Deshabilitar la lectura de tarjetas durante 5 segundos
+  handleCardRead();
+  handleButtonPress();  
+  mqttClient.loop();
+}
+
+void handleButtonPress() {
+  if (digitalRead(BUTTON_PIN) == LOW && !buttonState) {
+    buttonState = true;
+    mqttClient.publish(mqtt_topic_timbre, "Timbre pulsado");
+  } else if (digitalRead(BUTTON_PIN) == HIGH) {
+    buttonState = false;
+  }
+}
+
+void handleCardRead() {
+  if (isCardReadEnabled && isReadModeEnabled && mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
     isCardReadEnabled = false;
     lastCardReadTime = millis();
 
-    // Leer el número de la tarjeta RFID
     String cardNumber = "";
     for (byte i = 0; i < mfrc522.uid.size; i++) {
       cardNumber.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? "0" : ""));
@@ -88,25 +121,93 @@ void loop() {
     }
     Serial.println("Número de tarjeta leído: " + cardNumber);
 
-    // Encender el LED durante un segundo
-    digitalWrite(LED_BUILTIN, LOW);
-    delay(1000);
-    digitalWrite(LED_BUILTIN, HIGH);
+    StaticJsonDocument<200> jsonDocument;
+    jsonDocument["tag"] = cardNumber;
 
-    // Enviar el número de la tarjeta RFID al broker MQTT
-    mqttClient.publish(mqtt_topic, cardNumber.c_str());
+    String jsonString;
+    serializeJson(jsonDocument, jsonString);
+
+    mqttClient.publish(mqtt_topic_solicitud, jsonString.c_str());
   }
 
-  // Verificar si ha pasado el tiempo de espera para habilitar la lectura de tarjetas nuevamente
   if (!isCardReadEnabled && (millis() - lastCardReadTime >= cardReadInterval)) {
     isCardReadEnabled = true;
   }
+}
 
-  // Mantener la conexión MQTT activa
-  if (!mqttClient.connected()) {
-    reconnect();
+void reconnect() {
+  while (!mqttClient.connected()) {
+    Serial.println("Intentando reconexión al broker MQTT...");
+    if (mqttClient.connect("arduino")) {
+      Serial.println("Conectado al broker MQTT");
+    } else {
+      Serial.println("Falló al conectar al broker MQTT. Reintentando en 5 segundos...");
+      delay(5000);
+    }
   }
-  mqttClient.loop();
+}
+
+void processCommand(const char* topic, const char* message) {
+  Serial.print("Mensaje recibido en el tópico: ");
+  Serial.println(topic);
+
+  String receivedMessage(message);
+
+  if (strcmp(topic, mqtt_topic_comando) == 0) {
+    DynamicJsonDocument jsonDocument(200);
+    DeserializationError error = deserializeJson(jsonDocument, receivedMessage);
+    if (error) {
+      Serial.println("Error al analizar el JSON");
+      return;
+    }
+
+    if (jsonDocument.containsKey("OK") && jsonDocument["OK"] == true) {
+      Serial.println("Puerta abierta");
+      resetFailedAttempts();
+      isDoorOpen = true;
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(tiempoOpen);
+      digitalWrite(LED_BUILTIN, HIGH);
+    } else {
+      Serial.println("Intento fallido...");
+      updateAttempts();
+      isDoorOpen = false;
+      for (int i = 0; i < 10; i++) {
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(100);
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(100);
+      }
+    }
+  }
+}
+
+void resetFailedAttempts() {
+  failedAttempts = 0;
+}
+
+void updateAttempts() {
+  failedAttempts += 1;
+
+  if (failedAttempts >= maxAttempts) {
+    disableReadMode();
+  }
+}
+
+void enableReadMode() {
+  isReadModeEnabled = true;
+}
+
+void disableReadMode() {
+  isReadModeEnabled = false;
+
+  StaticJsonDocument<50> jsonDocument;
+  jsonDocument["maxIntentos"] = failedAttempts;
+
+  String jsonString;
+  serializeJson(jsonDocument, jsonString);
+
+  mqttClient.publish(mqtt_topic_max_intentos, jsonString.c_str());
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -124,10 +225,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Mensaje recibido: ");
   Serial.println(message);
 
-  // Realizar alguna acción dependiendo del mensaje recibido
-  if (message == "reiniciar") {
-    Serial.println("Reiniciando el Arduino...");
-    delay(1000);
-    ESP.restart();
-  }
+  // Llamar a la función processCommand con los argumentos convertidos
+  processCommand(topic, message.c_str());
 }
+

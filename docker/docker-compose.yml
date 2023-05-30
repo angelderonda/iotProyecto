@@ -1,7 +1,8 @@
-version: '3'  # Versión de Docker Compose que estás utilizando
+version: '3' # Versión de Docker Compose que estás utilizando
 
 services:
-  mongodb: # Servicio para MongoDB
+  mongodb:
+    # Servicio para MongoDB
     image: mongo:3.6.3 # Imagen de Docker para MongoDB, versión 3.6.3
     container_name: mongodb # Nombre del contenedor de MongoDB
     ports:
@@ -14,10 +15,12 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=iotProyecto # Nombre de usuario del usuario root de MongoDB
       - MONGO_INITDB_ROOT_PASSWORD=iotProyecto # Contraseña del usuario root de MongoDB
 
-  mosquitto: # Servicio para Mosquitto
+  mosquitto:
+    # Servicio para Mosquitto
     image: eclipse-mosquitto:1.6.9 # Imagen de Docker para Mosquitto, versión 1.6.9
     container_name: mosquitto # Nombre del contenedor de Mosquitto
     ports:
       - '1883:1883' # Mapeo de puertos para acceder a Mosquitto desde el host
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf # Ruta del archivo de configuración de Mosquitto
+  
