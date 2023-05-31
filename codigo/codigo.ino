@@ -8,6 +8,8 @@
 #define SS_PIN D8
 #define LED_BUILTIN D0
 #define BUTTON_PIN D3
+#define PIR_PIN D2
+
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);  // Instancia de la clase
 
@@ -21,21 +23,28 @@ const char* mqtt_topic_solicitud = "solicitud/NFC";
 const char* mqtt_topic_comando = "cmd/abrir";
 const char* mqtt_topic_max_intentos = "maxIntentos";
 const char* mqtt_topic_timbre = "solicitud/timbre";
+const char* mqtt_topic_alarma = "alarma";
+const char* mqtt_topic_configuracion = "cmd/conf";
+
+
 
 // Crear una instancia del cliente MQTT
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
-bool isCardReadEnabled = true;     // Variable para habilitar/deshabilitar la lectura de tarjetas
-bool isDoorOpen = false;           // Variable para indicar si la puerta está abierta
-bool isReadModeEnabled = true;     // Variable para habilitar/deshabilitar el modo de lectura de tarjetas
-unsigned int failedAttempts = -1;  // Contador de intentos fallidos de lectura de tarjetas
-unsigned int maxAttempts = 5;      // Número máximo de intentos fallidos permitidos
-unsigned long tiempoOpen = 3000;   // Variable para controlar el tiempo de encendido del led 3 segundos predeterminado
-bool buttonState = false;          //Estado del pulsador
-
-unsigned long lastCardReadTime = 0;           // Variable para almacenar el tiempo de la última lectura de tarjeta
-const unsigned long cardReadInterval = 5000;  // Intervalo de tiempo en milisegundos entre lecturas de tarjetas
+bool isCardReadEnabled = true;              // Variable para habilitar/deshabilitar la lectura de tarjetas
+bool isDoorOpen = false;                    // Variable para indicar si la puerta está abierta
+bool isReadModeEnabled = true;              // Variable para habilitar/deshabilitar el modo de lectura de tarjetas
+unsigned int failedAttempts = -1;           // Contador de intentos fallidos de lectura de tarjetas
+unsigned int maxAttempts = 5;               // Número máximo de intentos fallidos permitidos
+unsigned long tiempoOpen = 3000;            // Variable para controlar el tiempo de encendido del led 3 segundos predeterminado
+bool buttonState = false;                   //Estado del pulsador
+bool isMotionDetected = false;              // Movimiento del sensor PIR
+bool alarma = true;                        // Alarma encendida por defecto
+unsigned long motionStartTime = 0;          // Variable para almacenar el tiempo de inicio de detección de movimiento
+const unsigned long motionDuration = 7000;  // Duración mínima de detección de movimiento en milisegundos (7 segundos)
+unsigned long lastCardReadTime = 0;         // Variable para almacenar el tiempo de la última lectura de tarjeta
+unsigned long cardReadInterval = 5000;      // Intervalo de tiempo en milisegundos entre lecturas de tarjetas
 
 void reconnect();
 void handleButtonPress();
@@ -74,8 +83,10 @@ void setup() {
   mqttClient.setCallback(callbackWrapper);
   reconnect();
 
-  // Suscribirse a los tópicos MQTT
+  // Nos suscribimos a la configuracion
   mqttClient.subscribe(mqtt_topic_comando);
+  mqttClient.subscribe(mqtt_topic_configuracion);
+
 
   // Configurar el pin del LED incorporado como salida
   pinMode(LED_BUILTIN, OUTPUT);
@@ -94,10 +105,16 @@ void setup() {
   enableReadMode();
 }
 
+
 void loop() {
   handleCardRead();
-  handleButtonPress();  
+  delay(10);
+  handleButtonPress();
+  delay(10);
+  detectMotion();
+  delay(10);
   mqttClient.loop();
+  delay(10);
 }
 
 void handleButtonPress() {
@@ -147,6 +164,28 @@ void reconnect() {
   }
 }
 
+void detectMotion() {
+  if (digitalRead(PIR_PIN) == HIGH) {
+    Serial.println(" MOVIMIENTO...");
+    if (!isMotionDetected) {
+      motionStartTime = millis();  // Actualizar el tiempo de inicio de detección de movimiento
+      isMotionDetected = true;
+    }
+  } else {
+    motionStartTime = 0;  // Actualizar el tiempo de inicio de detección de movimiento
+
+    if (isMotionDetected && (millis() - motionStartTime >= motionDuration) && alarma) {
+
+      //Serial.println("Movimiento detectado durante al menos 7 segundos");
+
+      mqttClient.publish(mqtt_topic_alarma, "Movimiento detectado, cuidado!!");
+    }
+
+    isMotionDetected = false;
+  }
+}
+
+
 void processCommand(const char* topic, const char* message) {
   Serial.print("Mensaje recibido en el tópico: ");
   Serial.println(topic);
@@ -178,6 +217,47 @@ void processCommand(const char* topic, const char* message) {
         digitalWrite(LED_BUILTIN, HIGH);
         delay(100);
       }
+    }
+  } else if (strcmp(topic, mqtt_topic_configuracion) == 0) {
+
+    Serial.println("Cambiando configuración...");    
+
+    DynamicJsonDocument jsonDocument(200);
+    DeserializationError error = deserializeJson(jsonDocument, receivedMessage);
+    if (error) {
+      Serial.println("Error al analizar el JSON");
+      return;
+    }
+
+
+    if (jsonDocument.containsKey("alarma")) {
+      alarma = jsonDocument["alarma"];
+      Serial.print("Nueva configuración de alarma: ");
+      Serial.println(alarma);
+    }
+
+    if (jsonDocument.containsKey("tiempoOpen")) {
+      tiempoOpen = jsonDocument["tiempoOpen"];
+      Serial.print("Nueva configuración de tiempoOpen: ");
+      Serial.println(tiempoOpen);
+    }
+
+    if (jsonDocument.containsKey("cardReadInterval")) {
+      cardReadInterval = jsonDocument["cardReadInterval"];
+      Serial.print("Nueva configuración de cardReadInterval: ");
+      Serial.println(cardReadInterval);
+    }
+
+    if (jsonDocument.containsKey("isReadModeEnabled")) {
+      isReadModeEnabled = jsonDocument["isReadModeEnabled"];
+      Serial.print("Nueva configuración de isReadModeEnabled: ");
+      Serial.println(isReadModeEnabled);
+    }
+
+    if (jsonDocument.containsKey("maxAttempts")) {
+      maxAttempts = jsonDocument["maxAttempts"];
+      Serial.print("Nueva configuración de maxAttempts: ");
+      Serial.println(maxAttempts);
     }
   }
 }
@@ -228,4 +308,3 @@ void callback(char* topic, byte* payload, unsigned int length) {
   // Llamar a la función processCommand con los argumentos convertidos
   processCommand(topic, message.c_str());
 }
-
