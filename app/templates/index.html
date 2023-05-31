@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Inicio</title>
+{% endblock %}
+
+{% block body %}
+<a href="{{ url_for('usuarios') }}">Gestion de Usuarios</a>
+<a href="{{ url_for('configuracion') }}">Configuración</a>
+<a href="{{ url_for('abrir') }}"><button>Abrir puerta</button></a>
+<h1>Bienvenido</h1>
+<h2>Información</h2>
+<iframe width="1900" height="1425" src="https://lookerstudio.google.com/embed/reporting/d92e4591-0a00-458d-85ff-f73ff6940745/page/p_fxz2vq1l6c" frameborder="0" style="border:0" allowfullscreen></iframe>
+{% endblock %}

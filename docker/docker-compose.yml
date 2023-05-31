@@ -23,4 +23,12 @@ services:
       - '1883:1883' # Mapeo de puertos para acceder a Mosquitto desde el host
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf # Ruta del archivo de configuración de Mosquitto
-  
+  app:
+    image: flask
+    container_name: flask
+    restart: always
+    ports:
+      - '5000:5000'
+    depends_on:
+      - mongodb
+      - mosquitto

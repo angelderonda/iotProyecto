@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Configuración de la puerta</title>
+{% endblock %}
+{% block body %}
+<a href="{{ url_for('index') }}">Inicio</a>
+<h1>Configuración actual</h1>
+<form action="{{ url_for('configuracion') }}" method="post">
+    <input type="checkbox" name="alarma" {% if conf.alarma %} checked {% endif %}>Alarma Activada<br>
+    <input type="number" name="tiempoOpen" value="{{ conf.tiempoOpen }}">Tiempo de apertura de la puerta (s)<br>
+    <input type="number" name="cardReadInterval" value="{{ conf.cardReadInterval }}">Tiempo de espera para leer otra
+    tarjeta (s)<br>
+    <input type="checkbox" name="isReadModeEnabled" {% if conf.isReadModeEnabled %} checked {% endif %}>Lectura de tarjetas<br>
+    <input type="maxAttempts" name="maxAttempts" value="{{ conf.maxAttempts }}">Número máximo de intentos<br>
+    <input type="submit" value="Modificar">
+</form>
+{% endblock %}

@@ -166,7 +166,7 @@ void reconnect() {
 
 void detectMotion() {
   if (digitalRead(PIR_PIN) == HIGH) {
-    Serial.println(" MOVIMIENTO...");
+    //Serial.println(" MOVIMIENTO...");
     if (!isMotionDetected) {
       motionStartTime = millis();  // Actualizar el tiempo de inicio de detección de movimiento
       isMotionDetected = true;
@@ -209,7 +209,6 @@ void processCommand(const char* topic, const char* message) {
       digitalWrite(LED_BUILTIN, HIGH);
     } else {
       Serial.println("Intento fallido...");
-      updateAttempts();
       isDoorOpen = false;
       for (int i = 0; i < 10; i++) {
         digitalWrite(LED_BUILTIN, LOW);
@@ -217,6 +216,7 @@ void processCommand(const char* topic, const char* message) {
         digitalWrite(LED_BUILTIN, HIGH);
         delay(100);
       }
+      updateAttempts();
     }
   } else if (strcmp(topic, mqtt_topic_configuracion) == 0) {
 
@@ -237,13 +237,13 @@ void processCommand(const char* topic, const char* message) {
     }
 
     if (jsonDocument.containsKey("tiempoOpen")) {
-      tiempoOpen = jsonDocument["tiempoOpen"];
+      tiempoOpen = long(jsonDocument["tiempoOpen"])*1000;
       Serial.print("Nueva configuración de tiempoOpen: ");
       Serial.println(tiempoOpen);
     }
 
     if (jsonDocument.containsKey("cardReadInterval")) {
-      cardReadInterval = jsonDocument["cardReadInterval"];
+      cardReadInterval = long(jsonDocument["cardReadInterval"])*1000;
       Serial.print("Nueva configuración de cardReadInterval: ");
       Serial.println(cardReadInterval);
     }
