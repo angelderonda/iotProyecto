@@ -23,7 +23,7 @@ services:
       - '1883:1883' # Mapeo de puertos para acceder a Mosquitto desde el host
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf # Ruta del archivo de configuración de Mosquitto
-      - ./passwd:/mosquitto/config/passwd # Ruta del archivo de contraseña
+      - ./mosquitto.passwd:/mosquitto/config/mosquitto.passwd # Ruta del archivo de contraseña
   app:
     image: flask
     container_name: flask

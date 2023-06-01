@@ -3,16 +3,32 @@
 {% block head %}
 <title>Configuración de la puerta</title>
 {% endblock %}
+
 {% block body %}
-<a href="{{ url_for('index') }}">Inicio</a>
-<h1>Configuración actual</h1>
-<form action="{{ url_for('configuracion') }}" method="post">
-    <input type="checkbox" name="alarma" {% if conf.alarma %} checked {% endif %}>Alarma Activada<br>
-    <input type="number" name="tiempoOpen" value="{{ conf.tiempoOpen }}">Tiempo de apertura de la puerta (s)<br>
-    <input type="number" name="cardReadInterval" value="{{ conf.cardReadInterval }}">Tiempo de espera para leer otra
-    tarjeta (s)<br>
-    <input type="checkbox" name="isReadModeEnabled" {% if conf.isReadModeEnabled %} checked {% endif %}>Lectura de tarjetas<br>
-    <input type="maxAttempts" name="maxAttempts" value="{{ conf.maxAttempts }}">Número máximo de intentos<br>
-    <input type="submit" value="Modificar">
-</form>
+<div class="container">
+    <h1 class="mt-5">Configuración actual</h1>
+    <form action="{{ url_for('configuracion') }}" method="post">
+        <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="alarma" name="alarma" {% if conf.alarma %} checked {% endif %}>
+            <label class="form-check-label" for="alarma">Alarma Activada</label>
+        </div>
+        <div class="mb-3">
+            <label for="tiempoOpen" class="form-label">Tiempo de apertura de la puerta (s)</label>
+            <input type="number" class="form-control" id="tiempoOpen" name="tiempoOpen" value="{{ conf.tiempoOpen }}">
+        </div>
+        <div class="mb-3">
+            <label for="cardReadInterval" class="form-label">Tiempo de espera para leer otra tarjeta (s)</label>
+            <input type="number" class="form-control" id="cardReadInterval" name="cardReadInterval" value="{{ conf.cardReadInterval }}">
+        </div>
+        <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="isReadModeEnabled" name="isReadModeEnabled" {% if conf.isReadModeEnabled %} checked {% endif %}>
+            <label class="form-check-label" for="isReadModeEnabled">Lectura de tarjetas</label>
+        </div>
+        <div class="mb-3">
+            <label for="maxAttempts" class="form-label">Número máximo de intentos</label>
+            <input type="number" class="form-control" id="maxAttempts" name="maxAttempts" value="{{ conf.maxAttempts }}">
+        </div>
+        <button type="submit" class="btn btn-primary">Modificar</button>
+    </form>
+</div>
 {% endblock %}

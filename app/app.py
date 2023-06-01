@@ -1,5 +1,5 @@
 import paho.mqtt.client as mqtt
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 from flask_mongoengine import MongoEngine
 import os
 from google.cloud import bigquery
@@ -8,6 +8,15 @@ from telebot import TeleBot
 import threading
 import json
 from datetime import datetime
+
+ACCESS_USERNAME = os.getenv("ACCESS_USERNAME", "admin")
+ACCESS_PASSWORD = os.getenv("ACCESS_PASSWORD", "admin")
+
+#MQTT_BROKER = os.environ.get('MQTT_BROKER', 'mosquitto')
+MQTT_BROKER = os.environ.get("MQTT_BROKER", "localhost")
+
+MQTT_USER = os.environ.get("MQTT_USER", "iotProyecto")
+MQTT_PASSWORD = os.environ.get("MQTT_PASSWORD", "iotProyecto")
 
 TOPIC_NFC = "solicitud/NFC"
 TOPIC_ABRIR = "cmd/abrir"
@@ -84,9 +93,10 @@ def on_message(client, userdata, msg):
 
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)
 
-#app.config["MONGODB_HOST"] = os.environ.get("MONGODB_HOST", "localhost")
-app.config["MONGODB_HOST"] = os.environ.get('MONGODB_HOST', 'mongodb')
+app.config["MONGODB_HOST"] = os.environ.get("MONGODB_HOST", "localhost")
+#app.config["MONGODB_HOST"] = os.environ.get('MONGODB_HOST', 'mongodb')
 app.config["MONGODB_PORT"] = int(os.environ.get("MONGODB_PORT", 27017))
 app.config["MONGODB_DB"] = os.environ.get("MONGODB_DB", "iot")
 app.config["MONGODB_USERNAME"] = os.environ.get("MONGODB_USERNAME", "iotProyecto")
@@ -285,13 +295,31 @@ def telegram_notificar(message):
         bot.reply_to(message, "Se ha activado la notificación al abrir la puerta")
         notify_when_open = True
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        return render_template("login.html", error=None)
+    elif request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        if username == ACCESS_USERNAME and password == ACCESS_PASSWORD:
+            session["user"] = username
+            return redirect(url_for("index"))
+        else:
+            return render_template("login.html", error="Usuario o contraseña incorrectos")
+
 @app.route("/", methods=["GET"])
 def index():
+    if session.get("user") is None:
+        return redirect(url_for("login"))
     return render_template("index.html")
 
 
 @app.route("/usuarios", methods=["GET", "POST"])
 def usuarios():
+    if session.get("user") is None:
+        return redirect(url_for("login"))
     if request.method == "GET":
         users = Usuario.objects()
         return render_template("usuarios.html", users=users)
@@ -312,6 +340,8 @@ def usuarios():
 
 @app.route("/usuarios/delete/<tag>", methods=["GET"])
 def delete_usuario(tag):
+    if session.get("user") is None:
+        return redirect(url_for("login"))
     user = Usuario.objects(tag=tag).first()
     user.delete()
     return redirect(url_for("usuarios"))
@@ -319,11 +349,12 @@ def delete_usuario(tag):
 
 @app.route("/configuracion", methods=["GET", "POST"])
 def configuracion():
+    if session.get("user") is None:
+        return redirect(url_for("login"))
     if request.method == "GET":
         conf_actual = Configuracion.objects().first()
         return render_template("configuracion.html", conf=conf_actual)
     elif request.method == "POST":
-        print(request.form)
         conf_actual = Configuracion.objects().first()
         try:
             conf_actual.alarma = request.form["alarma"] == "on"
@@ -355,6 +386,8 @@ def configuracion():
 
 @app.route("/abrir", methods=["GET"])
 def abrir():
+    if session.get("user") is None:
+        return redirect(url_for("login"))
     client.publish(TOPIC_ABRIR, json.dumps({"OK": True}))
 
     if notify_when_open:
@@ -376,8 +409,7 @@ if __name__ == "__main__":
     client.on_connect = on_connect
     client.on_message = on_message
 
-    MQTT_BROKER = os.environ.get('MQTT_BROKER', 'mosquitto')
-    #MQTT_BROKER = os.environ.get("MQTT_BROKER", "localhost")
+    client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
     client.connect(MQTT_BROKER, 1883, 60)
 
     client.loop_start()

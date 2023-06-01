@@ -2,13 +2,32 @@
 
 {% block head %}
 <title>Inicio</title>
+<style>
+    .embed-responsive-looker {
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+        padding-bottom: 56.25%;
+    }
+
+    .embed-responsive-looker iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
+</style>
 {% endblock %}
 
 {% block body %}
-<a href="{{ url_for('usuarios') }}">Gestion de Usuarios</a>
-<a href="{{ url_for('configuracion') }}">Configuración</a>
-<a href="{{ url_for('abrir') }}"><button>Abrir puerta</button></a>
-<h1>Bienvenido</h1>
-<h2>Información</h2>
-<iframe width="1900" height="1425" src="https://lookerstudio.google.com/embed/reporting/d92e4591-0a00-458d-85ff-f73ff6940745/page/p_fxz2vq1l6c" frameborder="0" style="border:0" allowfullscreen></iframe>
+<div class="container">
+    <h1 class="mt-5">Bienvenido al sistema de gestión de la puerta</h1>
+    <h2>Aqui tienes información sobre la última actividad registrada</h2>
+    <div class="embed-responsive embed-responsive-looker">
+        <iframe src="https://lookerstudio.google.com/embed/reporting/d92e4591-0a00-458d-85ff-f73ff6940745/page/p_fxz2vq1l6c" allowfullscreen></iframe>
+    </div>
+    <p>Esta información se actualiza cada 15 minutos</p>
+</div>
 {% endblock %}
