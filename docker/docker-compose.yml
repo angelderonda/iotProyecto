@@ -25,11 +25,11 @@ services:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf # Ruta del archivo de configuración de Mosquitto
       - ./mosquitto.passwd:/mosquitto/config/mosquitto.passwd # Ruta del archivo de contraseña
   app:
-    image: flask
-    container_name: flask
+    image: nicoqm/door_app
+    container_name: app
     restart: always
     ports:
-      - '5000:5000'
+      - '80:5000'
     depends_on:
       - mongodb
       - mosquitto

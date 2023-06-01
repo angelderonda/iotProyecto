@@ -12,8 +12,8 @@ from datetime import datetime
 ACCESS_USERNAME = os.getenv("ACCESS_USERNAME", "admin")
 ACCESS_PASSWORD = os.getenv("ACCESS_PASSWORD", "admin")
 
-#MQTT_BROKER = os.environ.get('MQTT_BROKER', 'mosquitto')
-MQTT_BROKER = os.environ.get("MQTT_BROKER", "localhost")
+#MQTT_BROKER = os.environ.get("MQTT_BROKER", "localhost")
+MQTT_BROKER = os.environ.get('MQTT_BROKER', 'mosquitto')
 
 MQTT_USER = os.environ.get("MQTT_USER", "iotProyecto")
 MQTT_PASSWORD = os.environ.get("MQTT_PASSWORD", "iotProyecto")
@@ -95,8 +95,8 @@ def on_message(client, userdata, msg):
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-app.config["MONGODB_HOST"] = os.environ.get("MONGODB_HOST", "localhost")
-#app.config["MONGODB_HOST"] = os.environ.get('MONGODB_HOST', 'mongodb')
+#app.config["MONGODB_HOST"] = os.environ.get("MONGODB_HOST", "localhost")
+app.config["MONGODB_HOST"] = os.environ.get('MONGODB_HOST', 'mongodb')
 app.config["MONGODB_PORT"] = int(os.environ.get("MONGODB_PORT", 27017))
 app.config["MONGODB_DB"] = os.environ.get("MONGODB_DB", "iot")
 app.config["MONGODB_USERNAME"] = os.environ.get("MONGODB_USERNAME", "iotProyecto")
