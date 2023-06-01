@@ -17,6 +17,10 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);  // Instancia de la clase
 const char* ssid = "Angelito";
 const char* password = "c@lvo123";
 const char* mqtt_server = "192.168.118.88";  //mosquitto_sub -h 192.168.118.88 -t \# -d
+const char* mqtt_user = "NodeMCU";  
+const char* mqtt_password = "esp8266";  
+
+
 
 // Nombres de los tópicos MQTT
 const char* mqtt_topic_solicitud = "solicitud/NFC";
@@ -155,7 +159,7 @@ void handleCardRead() {
 void reconnect() {
   while (!mqttClient.connected()) {
     Serial.println("Intentando reconexión al broker MQTT...");
-    if (mqttClient.connect("arduino")) {
+    if (mqttClient.connect("NodeMCU-esp8266",mqtt_user,mqtt_password)) {
       Serial.println("Conectado al broker MQTT");
     } else {
       Serial.println("Falló al conectar al broker MQTT. Reintentando en 5 segundos...");
