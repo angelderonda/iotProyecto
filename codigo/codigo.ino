@@ -16,8 +16,8 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);  // Instancia de la clase
 // Definir los detalles de la conexión a WiFi y MQTT
 const char* ssid = "Angelito";
 const char* password = "c@lvo123";
-const char* mqtt_server = "192.168.118.88";  //mosquitto_sub -h 192.168.118.88 -t \# -d
-const char* mqtt_user = "NodeMCU";  
+const char* mqtt_server = "34.175.223.88";  //mosquitto_sub -h 34.175.223.88 -t \# -d
+const char* mqtt_user = "NODEMCU";  
 const char* mqtt_password = "esp8266";  
 
 
@@ -44,7 +44,7 @@ unsigned int maxAttempts = 5;               // Número máximo de intentos falli
 unsigned long tiempoOpen = 3000;            // Variable para controlar el tiempo de encendido del led 3 segundos predeterminado
 bool buttonState = false;                   //Estado del pulsador
 bool isMotionDetected = false;              // Movimiento del sensor PIR
-bool alarma = true;                        // Alarma encendida por defecto
+bool alarma = false;                        // Alarma apagada por defecto
 unsigned long motionStartTime = 0;          // Variable para almacenar el tiempo de inicio de detección de movimiento
 const unsigned long motionDuration = 7000;  // Duración mínima de detección de movimiento en milisegundos (7 segundos)
 unsigned long lastCardReadTime = 0;         // Variable para almacenar el tiempo de la última lectura de tarjeta
